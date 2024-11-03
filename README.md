@@ -205,3 +205,58 @@ Error responses follow the format:
 - Interactive API documentation available at root endpoint
 - Request/response validation through Flask-RESTX
 - Protected endpoints require Bearer token authentication
+
+
+
+
+
+
+
+## Folder Structure
+
+flask-app/
+├── app/                            # Main application directory
+│   ├── __init__.py                # App initialization and configuration
+│   ├── api_models.py              # API request/response models for Swagger
+│   ├── models/                    # Database models
+│   │   ├── __init__.py
+│   │   ├── user.py               # User model definition
+│   │   ├── recipe.py             # Recipe model definition
+│   │   └── favorite_recipe.py    # FavoriteRecipe model definition
+│   ├── routes/                    # API endpoints
+│   │   ├── __init__.py
+│   │   ├── auth.py               # Authentication endpoints (/api/signup, /api/login)
+│   │   ├── users.py              # User endpoints (/api/users, /api/me)
+│   │   ├── recipes.py            # Recipe CRUD endpoints
+│   │   └── favorite_recipes.py   # Favorite recipes endpoints
+│   └── utils/                     # Utility functions
+│
+├── config.py                      # Application configuration settings
+├── requirements.txt               # Python dependencies
+├── run.py                        # Application entry point
+├── docker-compose.yml            # Docker compose configuration
+└── Dockerfile                    # Docker build configuration
+
+Key Files for Specific Functionality:
+1. Authentication & User Management:
+   - app/routes/auth.py
+   - app/routes/users.py
+   - app/models/user.py
+
+2. Recipe Management:
+   - app/routes/recipes.py
+   - app/models/recipe.py
+
+3. Favorite Recipes:
+   - app/routes/favorite_recipes.py
+   - app/models/favorite_recipe.py
+
+4. API Documentation/Swagger:
+   - app/api_models.py
+
+5. Application Configuration:
+   - config.py
+   - docker-compose.yml
+
+6. Database Models:
+   - All files under app/models/

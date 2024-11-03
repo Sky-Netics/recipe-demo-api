@@ -15,16 +15,16 @@ services:
       - .:/app
     command: flask run --host=0.0.0.0
 
-  db:
-    image: postgres:13
-    ports:
-      - "5432:5432"
-    environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
-      - POSTGRES_DB=tastebite_flask
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
+  # db:
+  #   image: postgres:13
+  #   ports:
+  #     - "5432:5432"
+  #   environment:
+  #     - POSTGRES_USER=postgres
+  #     - POSTGRES_PASSWORD=postgres
+  #     - POSTGRES_DB=tastebite_flask
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
 
 volumes:
   postgres_data:
