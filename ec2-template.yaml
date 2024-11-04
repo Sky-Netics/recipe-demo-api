@@ -46,7 +46,7 @@ Resources:
         Image: !Ref DockerImageUri
         Memory: 512
         PortMappings:
-        - ContainerPort: 8282
+        - ContainerPort: 5000
           HostPort: 80
         Environment:
         - Name: FLASK_APP
