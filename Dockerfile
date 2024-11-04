@@ -15,11 +15,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Set environment variables
-ENV FLASK_APP=run.py
-ENV FLASK_ENV=development
+ENV FLASK_APP=application.py
+ENV FLASK_ENV=production
 
 # Expose port
 EXPOSE 5000
 
-# Command to run the application
-CMD ["flask", "run", "--host=0.0.0.0"]
+# Command to run the application with gunicorn
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "4", "application:app"]

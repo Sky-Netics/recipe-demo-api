@@ -1,0 +1,243 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: SAM Template for RecipeApp ECS EC2 Deployment with a single instance
+
+Parameters:
+  DockerImageUri:
+    Type: String
+    Description: URI of the Docker image to deploy
+  Subnet1:
+    Type: AWS::EC2::Subnet::Id
+    Description: The first subnet ID from the default VPC
+  Subnet2:
+    Type: AWS::EC2::Subnet::Id
+    Description: The second subnet ID from the default VPC
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: The VPC ID of the default VPC
+  InstanceType:
+    Type: String
+    Default: t2.micro
+    Description: EC2 instance type
+  KeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Default: cf-key-pair
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the instance
+
+Resources:
+  RecipeAppCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: RecipeAppCluster
+
+  RecipeAppTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: RecipeAppTaskDefinition
+      NetworkMode: bridge
+      RequiresCompatibilities:
+      - EC2
+      Cpu: '256'
+      Memory: '512'
+      ExecutionRoleArn: !Ref RecipeAppTaskExecutionRole
+      TaskRoleArn: !Ref RecipeAppTaskRole
+      ContainerDefinitions:
+      - Name: RecipeAppContainer
+        Image: !Ref DockerImageUri
+        Memory: 512
+        PortMappings:
+        - ContainerPort: 8282
+          HostPort: 80
+        Environment:
+        - Name: FLASK_APP
+          Value: !Sub '{{resolve:ssm:/recipeapp/FLASK_APP}}'
+        - Name: FLASK_ENV
+          Value: !Sub '{{resolve:ssm:/recipeapp/FLASK_ENV}}'
+        - Name: DATABASE_URL
+          Value: !Sub '{{resolve:ssm:/recipeapp/DATABASE_URL}}'
+        - Name: JWT_SECRET_KEY
+          Value: !Sub '{{resolve:ssm:/recipeapp/JWT_SECRET_KEY}}'
+        LogConfiguration:
+          LogDriver: awslogs
+          Options:
+            awslogs-group: !Ref RecipeAppLogGroup
+            awslogs-region: !Ref AWS::Region
+            awslogs-stream-prefix: ecs
+
+  RecipeAppLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /ecs/recipeapp
+      RetentionInDays: 14
+
+  RecipeAppService:
+    Type: AWS::ECS::Service
+    DependsOn:
+    - RecipeAppTaskRole
+    - RecipeAppEC2Instance
+    Properties:
+      ServiceName: RecipeAppService
+      Cluster: !Ref RecipeAppCluster
+      TaskDefinition: !Ref RecipeAppTaskDefinition
+      DesiredCount: 1
+      LaunchType: EC2
+      PlacementStrategies:
+      - Type: spread
+        Field: 'attribute:ecs.availability-zone'
+      - Type: binpack
+        Field: cpu
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 75
+
+  RecipeAppSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: RecipeAppSecurityGroup
+      GroupDescription: Security group for RecipeApp ECS tasks
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+      - IpProtocol: tcp
+        FromPort: 80
+        ToPort: 80
+        CidrIp: 0.0.0.0/0
+      - IpProtocol: tcp
+        FromPort: 8282
+        ToPort: 8282
+        CidrIp: 0.0.0.0/0
+      - IpProtocol: tcp
+        FromPort: 22
+        ToPort: 22
+        CidrIp: 0.0.0.0/0
+
+  RecipeAppTaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - ecs-tasks.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      Policies:
+      - PolicyName: SSMParameterAccess
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - ssm:GetParameters
+            Resource:
+            - !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/recipeapp/*'
+      - PolicyName: CloudWatchLogsAccess
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - logs:CreateLogStream
+            - logs:PutLogEvents
+            Resource: !GetAtt RecipeAppLogGroup.Arn
+
+  RecipeAppTaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service:
+            - ecs-tasks.amazonaws.com
+          Action:
+          - sts:AssumeRole
+      Policies:
+      - PolicyName: ECSTaskPermissions
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - ecr:GetAuthorizationToken
+            - ecr:BatchCheckLayerAvailability
+            - ecr:GetDownloadUrlForLayer
+            - ecr:BatchGetImage
+            Resource: '*'
+
+  RecipeAppInstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+        - Effect: Allow
+          Principal:
+            Service: ec2.amazonaws.com
+          Action: sts:AssumeRole
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role
+      - arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy
+      Policies:
+      - PolicyName: AllowCfnSignal
+        PolicyDocument:
+          Version: '2012-10-17'
+          Statement:
+          - Effect: Allow
+            Action:
+            - cloudformation:SignalResource
+            Resource: !Sub 'arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${AWS::StackName}/*'
+
+  RecipeAppInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Roles:
+      - !Ref RecipeAppInstanceRole
+
+  RecipeAppEC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: ami-01efd9ed777fe2e7f # Amazon ECS-Optimized Amazon Linux 2 AMI
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyName
+      SubnetId: !Ref Subnet1
+      SecurityGroupIds:
+      - !Ref RecipeAppSecurityGroup
+      IamInstanceProfile: !Ref RecipeAppInstanceProfile
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash -xe
+          echo ECS_CLUSTER=${RecipeAppCluster} >> /etc/ecs/ecs.config
+          yum install -y aws-cfn-bootstrap
+          /opt/aws/bin/cfn-init -v --stack ${AWS::StackId} --resource RecipeAppEC2Instance --region ${AWS::Region}
+          /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackId} --resource RecipeAppEC2Instance --region ${AWS::Region}
+      Tags:
+      - Key: Name
+        Value: RecipeAppECSInstance
+    CreationPolicy:
+      ResourceSignal:
+        Timeout: PT15M
+
+Outputs:
+  ClusterName:
+    Description: ECS Cluster Name
+    Value: !Ref RecipeAppCluster
+  ServiceName:
+    Description: ECS Service Name
+    Value: !Ref RecipeAppService
+  SecurityGroupId:
+    Description: Security Group ID
+    Value: !Ref RecipeAppSecurityGroup
+  LogGroupName:
+    Description: CloudWatch Log Group Name
+    Value: !Ref RecipeAppLogGroup
+  EC2InstanceId:
+    Description: EC2 Instance ID
+    Value: !Ref RecipeAppEC2Instance
+  EC2InstancePublicDNS:
+    Description: EC2 Instance Public DNS
+    Value: !GetAtt RecipeAppEC2Instance.PublicDnsName

@@ -260,3 +260,9 @@ Key Files for Specific Functionality:
 
 6. Database Models:
    - All files under app/models/
+
+
+
+
+
+   to run the app PYTHONPATH=$PYTHONPATH:. gunicorn -w 4 -b 0.0.0.0:80 'app:create_app()'

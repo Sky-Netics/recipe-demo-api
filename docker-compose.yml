@@ -9,11 +9,11 @@ services:
       - FLASK_APP=run.py
       - FLASK_ENV=development
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/tastebite_flask
-    depends_on:
-      - db
+    # depends_on:
+    #   - db
     volumes:
       - .:/app
-    command: flask run --host=0.0.0.0
+    command: gunicorn --bind 0.0.0.0:5000 --workers 4 application:app
 
   # db:
   #   image: postgres:13

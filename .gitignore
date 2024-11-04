@@ -49,3 +49,5 @@ ENV/
 .elasticbeanstalk/*
 !.elasticbeanstalk/*.cfg.yml
 !.elasticbeanstalk/*.global.yml
+/flask-app.zip
+/migrations/versions/__pycache__
