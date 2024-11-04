@@ -21,7 +21,7 @@ Parameters:
     Description: EC2 instance type
   KeyName:
     Type: AWS::EC2::KeyPair::KeyName
-    Default: cf-key-pair
+    Default: myKeypair
     Description: Name of an existing EC2 KeyPair to enable SSH access to the instance
 
 Resources:
