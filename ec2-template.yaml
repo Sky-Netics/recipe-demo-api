@@ -201,7 +201,7 @@ Resources:
   RecipeAppEC2Instance:
     Type: AWS::EC2::Instance
     Properties:
-      ImageId: ami-01efd9ed777fe2e7f # Amazon ECS-Optimized Amazon Linux 2 AMI
+      ImageId: ami-028eb196e5a3ee52c # Amazon ECS-Optimized Amazon Linux 2 AMI
       InstanceType: !Ref InstanceType
       KeyName: !Ref KeyName
       SubnetId: !Ref Subnet1
