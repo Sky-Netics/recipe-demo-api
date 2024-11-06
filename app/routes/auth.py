@@ -5,11 +5,12 @@ from flask_jwt_extended import (
     create_refresh_token,
     jwt_required,
     get_jwt_identity,
-    get_jwt
+    get_jwt,
+    verify_jwt_in_request
 )
 from datetime import timedelta
 from app.models import User
-from app import db
+from app import db, jwt
 from app.api_models import (
     api, user_input, auth_response, login_input,
     error_model, refresh_token_input, refresh_token_response
@@ -120,29 +121,48 @@ class TokenRefresh(Resource):
     @auth_ns.expect(refresh_token_input)
     @auth_ns.response(200, 'Token refresh successful', refresh_token_response)
     @auth_ns.response(401, 'Invalid refresh token', error_model)
-    @jwt_required(refresh=True)
     def post(self):
         """
         Refresh access token using refresh token
         
         Returns new access token and refresh token
         """
-        current_user_id = get_jwt_identity()
+        data = auth_ns.payload
         
-        # Create new tokens
-        access_token = create_access_token(
-            identity=current_user_id,
-            expires_delta=ACCESS_EXPIRES
-        )
-        refresh_token = create_refresh_token(
-            identity=current_user_id,
-            expires_delta=REFRESH_EXPIRES
-        )
-        
-        return {
-            "access_token": access_token,
-            "refresh_token": refresh_token
-        }, 200
+        if not data or 'refresh_token' not in data:
+            return {"errors": ["Refresh token is required"]}, 400
+            
+        try:
+            # Verify the refresh token manually
+            from flask_jwt_extended.utils import decode_token
+            from flask_jwt_extended.exceptions import WrongTokenError
+            
+            try:
+                token_data = decode_token(data['refresh_token'])
+                if token_data['type'] != 'refresh':
+                    raise WrongTokenError('Only refresh tokens are allowed')
+                current_user_id = token_data['sub']
+            except WrongTokenError as e:
+                return {"errors": ["Invalid refresh token"]}, 401
+                
+            # Create new tokens
+            access_token = create_access_token(
+                identity=current_user_id,
+                expires_delta=ACCESS_EXPIRES
+            )
+            refresh_token = create_refresh_token(
+                identity=current_user_id,
+                expires_delta=REFRESH_EXPIRES
+            )
+            
+            return {
+                "access_token": access_token,
+                "refresh_token": refresh_token
+            }, 200
+            
+        except Exception as e:
+            print(e)
+            return {"errors": ["An error occurred while refreshing tokens"]}, 500
 
 # Register blueprint
 auth_bp = Blueprint('auth', __name__)
