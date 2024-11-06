@@ -110,6 +110,11 @@ Resources:
           FromPort: 22
           ToPort: 22
           CidrIp: 0.0.0.0/0
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          FromPort: -1
+          ToPort: -1
+          CidrIp: 0.0.0.0/0
 
   RecipeAppDemoTaskExecutionRole:
     Type: AWS::IAM::Role
@@ -213,6 +218,11 @@ Resources:
         Fn::Base64: !Sub |
           #!/bin/bash -xe
           echo ECS_CLUSTER=${RecipeAppDemoCluster} >> /etc/ecs/ecs.config
+          echo ECS_ENABLE_CONTAINER_METADATA=true >> /etc/ecs/ecs.config
+          echo ECS_ENABLE_SPOT_INSTANCE_DRAINING=true >> /etc/ecs/ecs.config
+          echo ECS_CONTAINER_STOP_TIMEOUT=120s >> /etc/ecs/ecs.config
+          echo ECS_AVAILABLE_LOGGING_DRIVERS='["json-file","awslogs"]' >> /etc/ecs/ecs.config
+          yum update -y
           yum install -y aws-cfn-bootstrap
           /opt/aws/bin/cfn-init -v --stack ${AWS::StackId} --resource RecipeAppDemoEC2Instance --region ${AWS::Region}
           /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackId} --resource RecipeAppDemoEC2Instance --region ${AWS::Region}
