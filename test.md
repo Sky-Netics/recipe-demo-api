@@ -1,0 +1,1 @@
+https://8ae90e9d3e79bb1c7459.auth.us-east-1.amazoncognito.com/login?client_id=24vf4li8id2luutdrqf73npg2u&response_type=code&redirect_uri=https%3A%2F%2Fwww.gfy-update.online%2F_hcms%2Fmem%2Fjwt%2F
