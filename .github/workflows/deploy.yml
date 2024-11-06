@@ -84,7 +84,7 @@ jobs:
     - name: Deploy SAM application
       run: |
         sam deploy \
-          --stack-name new-recipeapp-stack \
+          --stack-name recipeapp-stack \
           --template-file .aws-sam/build/template.yaml \
           --capabilities CAPABILITY_IAM \
           --no-confirm-changeset \
