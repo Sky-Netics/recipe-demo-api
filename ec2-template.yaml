@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: SAM Template for RecipeAppDemo ECS EC2 Deployment with a single instance
+Description: SAM Template for RecipeApp ECS EC2 Deployment with a single instance
 
 Parameters:
   DockerImageUri:
@@ -25,24 +25,24 @@ Parameters:
     Description: Name of an existing EC2 KeyPair to enable SSH access to the instance
 
 Resources:
-  RecipeAppDemoCluster:
+  RecipeAppCluster:
     Type: AWS::ECS::Cluster
     Properties:
-      ClusterName: RecipeAppDemoCluster
+      ClusterName: RecipeAppCluster
 
-  RecipeAppDemoTaskDefinition:
+  RecipeAppTaskDefinition:
     Type: AWS::ECS::TaskDefinition
     Properties:
-      Family: RecipeAppDemoTaskDefinition
+      Family: RecipeAppTaskDefinition
       NetworkMode: bridge
       RequiresCompatibilities:
         - EC2
       Cpu: '256'
       Memory: '512'
-      ExecutionRoleArn: !Ref RecipeAppDemoTaskExecutionRole
-      TaskRoleArn: !Ref RecipeAppDemoTaskRole
+      ExecutionRoleArn: !Ref RecipeAppTaskExecutionRole
+      TaskRoleArn: !Ref RecipeAppTaskRole
       ContainerDefinitions:
-        - Name: RecipeAppDemoContainer
+        - Name: RecipeAppContainer
           Image: !Ref DockerImageUri
           Memory: 512
           Essential: true
@@ -61,7 +61,7 @@ Resources:
           LogConfiguration:
             LogDriver: awslogs
             Options:
-              awslogs-group: !Ref RecipeAppDemoLogGroup
+              awslogs-group: !Ref RecipeAppLogGroup
               awslogs-region: !Ref AWS::Region
               awslogs-stream-prefix: ecs
           HealthCheck:
@@ -73,21 +73,21 @@ Resources:
             Retries: 3
             StartPeriod: 60
 
-  RecipeAppDemoLogGroup:
+  RecipeAppLogGroup:
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: /ecs/recipeappdemo
+      LogGroupName: /ecs/recipeapp
       RetentionInDays: 14
 
-  RecipeAppDemoService:
+  RecipeAppService:
     Type: AWS::ECS::Service
     DependsOn:
-      - RecipeAppDemoTaskRole
-      - RecipeAppDemoEC2Instance
+      - RecipeAppTaskRole
+      - RecipeAppEC2Instance
     Properties:
-      ServiceName: RecipeAppDemoService
-      Cluster: !Ref RecipeAppDemoCluster
-      TaskDefinition: !Ref RecipeAppDemoTaskDefinition
+      ServiceName: RecipeAppService
+      Cluster: !Ref RecipeAppCluster
+      TaskDefinition: !Ref RecipeAppTaskDefinition
       DesiredCount: 1
       LaunchType: EC2
       DeploymentConfiguration:
@@ -101,13 +101,12 @@ Resources:
       DeploymentController:
         Type: ECS
       SchedulingStrategy: REPLICA
-      ForceNewDeployment: true
 
-  RecipeAppDemoSecurityGroup:
+  RecipeAppSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupName: RecipeAppDemoSecurityGroup
-      GroupDescription: Security group for RecipeAppDemo ECS tasks
+      GroupName: RecipeAppSecurityGroup
+      GroupDescription: Security group for RecipeApp ECS tasks
       VpcId: !Ref VpcId
       SecurityGroupIngress:
         - IpProtocol: tcp
@@ -123,7 +122,7 @@ Resources:
           ToPort: 22
           CidrIp: 0.0.0.0/0
 
-  RecipeAppDemoTaskExecutionRole:
+  RecipeAppTaskExecutionRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -155,9 +154,9 @@ Resources:
                 Action:
                   - logs:CreateLogStream
                   - logs:PutLogEvents
-                Resource: !GetAtt RecipeAppDemoLogGroup.Arn
+                Resource: !GetAtt RecipeAppLogGroup.Arn
 
-  RecipeAppDemoTaskRole:
+  RecipeAppTaskRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -182,7 +181,7 @@ Resources:
                   - ecr:BatchGetImage
                 Resource: '*'
 
-  RecipeAppDemoInstanceRole:
+  RecipeAppInstanceRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -205,13 +204,13 @@ Resources:
                   - cloudformation:SignalResource
                 Resource: !Sub 'arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${AWS::StackName}/*'
 
-  RecipeAppDemoInstanceProfile:
+  RecipeAppInstanceProfile:
     Type: AWS::IAM::InstanceProfile
     Properties:
       Roles:
-        - !Ref RecipeAppDemoInstanceRole
+        - !Ref RecipeAppInstanceRole
 
-  RecipeAppDemoEC2Instance:
+  RecipeAppEC2Instance:
     Type: AWS::EC2::Instance
     Properties:
       ImageId: ami-028eb196e5a3ee52c # Amazon ECS-Optimized Amazon Linux 2 AMI
@@ -219,21 +218,21 @@ Resources:
       KeyName: !Ref KeyName
       SubnetId: !Ref Subnet1
       SecurityGroupIds:
-        - !Ref RecipeAppDemoSecurityGroup
-      IamInstanceProfile: !Ref RecipeAppDemoInstanceProfile
+        - !Ref RecipeAppSecurityGroup
+      IamInstanceProfile: !Ref RecipeAppInstanceProfile
       UserData:
         Fn::Base64: !Sub |
           #!/bin/bash -xe
-          echo ECS_CLUSTER=${RecipeAppDemoCluster} >> /etc/ecs/ecs.config
+          echo ECS_CLUSTER=${RecipeAppCluster} >> /etc/ecs/ecs.config
           echo ECS_ENABLE_CONTAINER_METADATA=true >> /etc/ecs/ecs.config
           echo ECS_ENABLE_SPOT_INSTANCE_DRAINING=true >> /etc/ecs/ecs.config
           echo ECS_CONTAINER_STOP_TIMEOUT=120s >> /etc/ecs/ecs.config
           yum install -y aws-cfn-bootstrap curl
-          /opt/aws/bin/cfn-init -v --stack ${AWS::StackId} --resource RecipeAppDemoEC2Instance --region ${AWS::Region}
-          /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackId} --resource RecipeAppDemoEC2Instance --region ${AWS::Region}
+          /opt/aws/bin/cfn-init -v --stack ${AWS::StackId} --resource RecipeAppEC2Instance --region ${AWS::Region}
+          /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackId} --resource RecipeAppEC2Instance --region ${AWS::Region}
       Tags:
         - Key: Name
-          Value: RecipeAppDemoECSInstance
+          Value: RecipeAppECSInstance
     UpdatePolicy:
       AutoScalingRollingUpdate:
         MinInstancesInService: 1
@@ -247,19 +246,19 @@ Resources:
 Outputs:
   ClusterName:
     Description: ECS Cluster Name
-    Value: !Ref RecipeAppDemoCluster
+    Value: !Ref RecipeAppCluster
   ServiceName:
     Description: ECS Service Name
-    Value: !Ref RecipeAppDemoService
+    Value: !Ref RecipeAppService
   SecurityGroupId:
     Description: Security Group ID
-    Value: !Ref RecipeAppDemoSecurityGroup
+    Value: !Ref RecipeAppSecurityGroup
   LogGroupName:
     Description: CloudWatch Log Group Name
-    Value: !Ref RecipeAppDemoLogGroup
+    Value: !Ref RecipeAppLogGroup
   EC2InstanceId:
     Description: EC2 Instance ID
-    Value: !Ref RecipeAppDemoEC2Instance
+    Value: !Ref RecipeAppEC2Instance
   EC2InstancePublicDNS:
     Description: EC2 Instance Public DNS
-    Value: !GetAtt RecipeAppDemoEC2Instance.PublicDnsName
+    Value: !GetAtt RecipeAppEC2Instance.PublicDnsName
