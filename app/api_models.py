@@ -23,14 +23,16 @@ user_input = api.model('UserInput', {
     'email': fields.String(required=True, description='User email'),
     'password': fields.String(required=True, description='User password'),
     'password_confirmation': fields.String(required=True, description='Password confirmation'),
-    'image_url': fields.String(required=True, description='User profile image URL')
+    'image_url': fields.String(required=True, description='User profile image URL'),
+    'role': fields.String(required=False, description='User role (admin/user)', default='user')
 })
 
 user_output = api.model('User', {
     'id': fields.Integer(description='User ID'),
     'username': fields.String(description='User username'),
     'email': fields.String(description='User email'),
-    'image_url': fields.String(description='User profile image URL')
+    'image_url': fields.String(description='User profile image URL'),
+    'role': fields.String(description='User role')
 })
 
 login_input = api.model('LoginInput', {

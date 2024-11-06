@@ -1,4 +1,4 @@
-from flask import Blueprint
+from flask import Blueprint, request
 from flask_restx import Resource, Namespace
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models import Recipe
@@ -11,10 +11,34 @@ api.add_namespace(recipes_ns)
 @recipes_ns.route('/recipes')
 class RecipeList(Resource):
     @recipes_ns.response(200, 'Success', [recipe_output])
+    @recipes_ns.doc(params={
+        'page': 'Page number (default: 1)',
+        'per_page': 'Items per page (default: 10)'
+    })
     def get(self):
-        """Get all recipes"""
-        recipes = Recipe.query.all()
-        return [recipe.to_dict() for recipe in recipes], 200
+        """Get all recipes with pagination"""
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 10, type=int)
+
+        # Ensure valid pagination parameters
+        if page < 1:
+            page = 1
+        if per_page < 1 or per_page > 100:
+            per_page = 10
+
+        pagination = Recipe.query.paginate(
+            page=page,
+            per_page=per_page,
+            error_out=False
+        )
+
+        return {
+            'items': [recipe.to_dict() for recipe in pagination.items],
+            'total': pagination.total,
+            'page': page,
+            'per_page': per_page,
+            'pages': pagination.pages
+        }, 200
 
     @jwt_required()
     @recipes_ns.doc(security='Bearer Auth')
@@ -42,6 +66,41 @@ class RecipeList(Resource):
         except Exception as e:
             db.session.rollback()
             return {"errors": ["An error occurred while creating the recipe"]}, 500
+
+@recipes_ns.route('/my-recipes')
+class MyRecipes(Resource):
+    @jwt_required()
+    @recipes_ns.doc(security='Bearer Auth')
+    @recipes_ns.response(200, 'Success', [recipe_output])
+    @recipes_ns.doc(params={
+        'page': 'Page number (default: 1)',
+        'per_page': 'Items per page (default: 10)'
+    })
+    def get(self):
+        """Get current user's recipes with pagination"""
+        current_user_id = get_jwt_identity()
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 10, type=int)
+
+        # Ensure valid pagination parameters
+        if page < 1:
+            page = 1
+        if per_page < 1 or per_page > 100:
+            per_page = 10
+
+        pagination = Recipe.query.filter_by(user_id=current_user_id).paginate(
+            page=page,
+            per_page=per_page,
+            error_out=False
+        )
+
+        return {
+            'items': [recipe.to_dict() for recipe in pagination.items],
+            'total': pagination.total,
+            'page': page,
+            'per_page': per_page,
+            'pages': pagination.pages
+        }, 200
 
 @recipes_ns.route('/recipes/<int:id>')
 class RecipeDetail(Resource):

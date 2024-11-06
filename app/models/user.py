@@ -2,6 +2,7 @@ from app import db
 import bcrypt
 from sqlalchemy.orm import validates
 import re
+from sqlalchemy import text
 
 class User(db.Model):
     __tablename__ = 'users'
@@ -11,6 +12,7 @@ class User(db.Model):
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(128), nullable=False)
     image_url = db.Column(db.String(255), nullable=False)
+    role = db.Column(db.String(20), nullable=False, default='user', server_default=text("'user'"))  # 'user' or 'admin'
 
     # Relationships
     recipes = db.relationship('Recipe', backref='user', lazy=True, cascade='all, delete-orphan')
@@ -22,6 +24,9 @@ class User(db.Model):
 
     def check_password(self, password):
         return bcrypt.checkpw(password.encode('utf-8'), self.password_hash.encode('utf-8'))
+
+    def is_admin(self):
+        return self.role == 'admin'
 
     @validates('email')
     def validate_email(self, key, email):
@@ -49,10 +54,17 @@ class User(db.Model):
             raise ValueError('Image URL is required')
         return image_url
 
+    @validates('role')
+    def validate_role(self, key, role):
+        if role not in ['user', 'admin']:
+            raise ValueError('Invalid role. Must be either "user" or "admin"')
+        return role
+
     def to_dict(self):
         return {
             'id': self.id,
             'username': self.username,
             'email': self.email,
-            'image_url': self.image_url
+            'image_url': self.image_url,
+            'role': self.role
         }
