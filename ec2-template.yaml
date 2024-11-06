@@ -29,8 +29,6 @@ Resources:
     Type: AWS::ECS::Cluster
     Properties:
       ClusterName: RecipeAppDemoCluster
-      CapacityProviders:
-        - EC2
 
   RecipeAppDemoTaskDefinition:
     Type: AWS::ECS::TaskDefinition
