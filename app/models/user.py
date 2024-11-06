@@ -68,3 +68,4 @@ class User(db.Model):
             'image_url': self.image_url,
             'role': self.role
         }
+
