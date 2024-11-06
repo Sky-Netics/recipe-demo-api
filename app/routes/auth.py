@@ -1,12 +1,27 @@
 from flask import Blueprint
 from flask_restx import Resource, Namespace
-from flask_jwt_extended import create_access_token
+from flask_jwt_extended import (
+    create_access_token,
+    create_refresh_token,
+    jwt_required,
+    get_jwt_identity,
+    get_jwt
+)
+from datetime import timedelta
 from app.models import User
 from app import db
-from app.api_models import api, user_input, auth_response, login_input, error_model
+from app.api_models import (
+    api, user_input, auth_response, login_input,
+    error_model, refresh_token_input, refresh_token_response
+)
 
 auth_ns = Namespace('auth', description='Authentication operations')
 api.add_namespace(auth_ns)
+
+# Access token expires in 15 minutes
+ACCESS_EXPIRES = timedelta(minutes=15)
+# Refresh token expires in 30 days
+REFRESH_EXPIRES = timedelta(days=30)
 
 @auth_ns.route('/signup')
 class SignUp(Resource):
@@ -17,7 +32,7 @@ class SignUp(Resource):
         """
         Create a new user account
         
-        Returns a user object and JWT token for authentication
+        Returns a user object, access token, and refresh token
         """
         data = auth_ns.payload
         
@@ -42,12 +57,20 @@ class SignUp(Resource):
             db.session.add(user)
             db.session.commit()
 
-            # Create access token
-            access_token = create_access_token(identity=user.id)
+            # Create tokens
+            access_token = create_access_token(
+                identity=user.id,
+                expires_delta=ACCESS_EXPIRES
+            )
+            refresh_token = create_refresh_token(
+                identity=user.id,
+                expires_delta=REFRESH_EXPIRES
+            )
             
             return {
                 "user": user.to_dict(),
-                "access_token": access_token
+                "access_token": access_token,
+                "refresh_token": refresh_token
             }, 201
 
         except ValueError as e:
@@ -65,7 +88,7 @@ class Login(Resource):
         """
         Authenticate a user
         
-        Returns a user object and JWT token for authentication
+        Returns a user object, access token, and refresh token
         """
         data = auth_ns.payload
         
@@ -75,13 +98,51 @@ class Login(Resource):
         user = User.query.filter_by(username=data['username']).first()
         
         if user and user.check_password(data['password']):
-            access_token = create_access_token(identity=user.id)
+            access_token = create_access_token(
+                identity=user.id,
+                expires_delta=ACCESS_EXPIRES
+            )
+            refresh_token = create_refresh_token(
+                identity=user.id,
+                expires_delta=REFRESH_EXPIRES
+            )
+            
             return {
                 "user": user.to_dict(),
-                "access_token": access_token
+                "access_token": access_token,
+                "refresh_token": refresh_token
             }, 201
         
         return {"errors": ["Invalid username or password"]}, 401
+
+@auth_ns.route('/refresh')
+class TokenRefresh(Resource):
+    @auth_ns.expect(refresh_token_input)
+    @auth_ns.response(200, 'Token refresh successful', refresh_token_response)
+    @auth_ns.response(401, 'Invalid refresh token', error_model)
+    @jwt_required(refresh=True)
+    def post(self):
+        """
+        Refresh access token using refresh token
+        
+        Returns new access token and refresh token
+        """
+        current_user_id = get_jwt_identity()
+        
+        # Create new tokens
+        access_token = create_access_token(
+            identity=current_user_id,
+            expires_delta=ACCESS_EXPIRES
+        )
+        refresh_token = create_refresh_token(
+            identity=current_user_id,
+            expires_delta=REFRESH_EXPIRES
+        )
+        
+        return {
+            "access_token": access_token,
+            "refresh_token": refresh_token
+        }, 200
 
 # Register blueprint
 auth_bp = Blueprint('auth', __name__)

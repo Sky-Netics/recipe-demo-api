@@ -42,7 +42,17 @@ login_input = api.model('LoginInput', {
 
 auth_response = api.model('AuthResponse', {
     'user': fields.Nested(user_output),
-    'access_token': fields.String(description='JWT access token')
+    'access_token': fields.String(description='JWT access token'),
+    'refresh_token': fields.String(description='JWT refresh token')
+})
+
+refresh_token_input = api.model('RefreshTokenInput', {
+    'refresh_token': fields.String(required=True, description='JWT refresh token')
+})
+
+refresh_token_response = api.model('RefreshTokenResponse', {
+    'access_token': fields.String(description='New JWT access token'),
+    'refresh_token': fields.String(description='New JWT refresh token')
 })
 
 # Recipe models

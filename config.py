@@ -11,7 +11,8 @@ class Config:
     
     # JWT
     JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY')
-    JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=24)
+    JWT_ACCESS_TOKEN_EXPIRES = timedelta(minutes=15)  # Access token expires in 15 minutes
+    JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=30)    # Refresh token expires in 30 days
     
     # Application
     SECRET_KEY = os.getenv('JWT_SECRET_KEY')  # Using same key for Flask sessions
